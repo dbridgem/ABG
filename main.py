@@ -16,26 +16,24 @@ import shutil
 
 colors = [(256,0,256,200),(256,0,0,200),(0,256,0,200),(0,0,256,200),
           (128,128,128,200),(128,0,0,200),(0,128,0,200),(0,0,128,200),
-          (256,0,256,200),(256,0,0,200),(0,256,0,200),(0,0,256,200),
-          (128,128,128,200),(128,0,0,200),(0,128,0,200),(0,0,128,200),
-          (256,0,256,200),(256,0,0,200),(0,256,0,200),(0,0,256,200),
-          (128,128,128,200),(128,0,0,200),(0,128,0,200),(0,0,128,200)
           ]
-
 #Optional Inputs
 titlefont = ImageFont.truetype("arial.ttf", 18)
 standardfont = ImageFont.truetype("arial.ttf", 14)
-titlesize = titlefont.getsize(title)
-xlabelsize = standardfont.getsize(xlabel)
+height = 600
+width = 600
 
 #Open csv
 data = pd.read_csv('Input.csv',header = None,dtype = str)
-settings = data.iloc[:6,1]
-data = data.iloc[7:,:]
+settings = data.iloc[:7,1]
+data = data.iloc[8:,:]
 ylabels = data.iloc[1:,0]
+ylabels = ylabels.reset_index(drop = True)
 timevals = data.iloc[0,:]
 [m,n] = data.shape
 m = m - 1
+while len(colors) < m:
+    colors = colors + colors
 colors = colors[:m] #Trim colors to match number of rows
 
 fillerframes = int(settings.iloc[4]) #number of frames between each time point given
@@ -44,6 +42,9 @@ FPS = int(settings.iloc[2]) #Frames per second in final video
 title = settings.iloc[0]
 xlabel = settings.iloc[1]
 rightnums = settings.iloc[5] #Option for numbers displayed to the right of bars
+numbars = int(settings.iloc[6])
+titlesize = titlefont.getsize(title)
+xlabelsize = standardfont.getsize(xlabel)
 
 #Determine font size/locations for Y-Labels
 ylabelsize = np.empty([m,2])
@@ -57,7 +58,9 @@ timelabeldist = standardfont.getsize(timelabel)
 timelabeldist = timelabeldist[0]
 
 #Determine widths of bars
-bar_separation = np.floor(450 / (m))
+#bar_separation = np.floor(450 / (m))
+#bar_thickness = np.floor(bar_separation*0.5)
+bar_separation = np.floor(450 / (numbars))
 bar_thickness = np.floor(bar_separation*0.5)
 
 #See if temporary folder exists. If so, delete it
@@ -131,21 +134,22 @@ for i in range(num_frames):
         framenum = '0' + framenum
     filename = 'Images_AnimatedBarGraph/' + 'Frame' + framenum + '.png'
     
-    img = Image.new('RGB', (600, 600), color = (256, 256, 256))
+    img = Image.new('RGB', (width, height), color = (256, 256, 256))
     d = ImageDraw.Draw(img,'RGBA')
     
     for j in range(m):
-        
-        temp_polygonbound = [(100,Y_final.iloc[j,i]),
-                             (X_final.iloc[j,i],Y_final.iloc[j,i]),
-                             (X_final.iloc[j,i],Y_final.iloc[j,i] + bar_thickness+5),
-                             (100,Y_final.iloc[j,i] + bar_thickness+5)]
-        d.polygon(temp_polygonbound,fill = colors[j])
-        dispval = str(round(xmax*(X_final.iloc[j,i]-100)/400,0))
-        if rightnums == 'TRUE':
-            d.text((X_final.iloc[j,i]+3,Y_final.iloc[j,i] + bar_thickness/2 - 5),dispval, fill = colors[j],font = standardfont)
-        d.text((100-ylabelsize[j,0],Y_final.iloc[j,i] + bar_thickness/2 - 5), data.iloc[j,0], fill = colors[j],font = standardfont)
-    
+        if Y_final.iloc[j,i] < 530:
+            temp_polygonbound = [(100,Y_final.iloc[j,i]),
+                                 (X_final.iloc[j,i],Y_final.iloc[j,i]),
+                                 (X_final.iloc[j,i],Y_final.iloc[j,i] + bar_thickness+5),
+                                 (100,Y_final.iloc[j,i] + bar_thickness+5)]
+            d.polygon(temp_polygonbound,fill = colors[j])
+            dispval = str(round(xmax*(X_final.iloc[j,i]-100)/400,0))
+            if rightnums == 'TRUE':
+                d.text((X_final.iloc[j,i]+3,Y_final.iloc[j,i] + bar_thickness/2 - 5),dispval, fill = colors[j],font = standardfont)
+            d.text((100-ylabelsize[j,0],Y_final.iloc[j,i] + bar_thickness/2 - 5), ylabels.iloc[j], fill = colors[j],font = standardfont)
+    lazy_bottomcover = [(0,530),(600,530),(600,600),(0,600)]
+    d.polygon(lazy_bottomcover,fill = (256, 256, 256))
     d.line((100,60) + (100,530), fill=(0,0,0),width = 2)
     d.line((100,530) + (500,530), fill=(0,0,0),width = 2)
     
@@ -165,8 +169,6 @@ numframes = i + 1
 
 #Make Video from Frames
 framelist = os.listdir('Images_AnimatedBarGraph')
-width = 600
-height = 600
 seconds = numframes/FPS
 
 fourcc = VideoWriter_fourcc(*'MP42')
